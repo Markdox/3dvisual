@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Visualizzatore STL 3D Mobile</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: sans-serif;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 20px;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            text-align: center;
+            pointer-events: none;
+            background: rgba(0,0,0,0.4);
+            padding: 8px 15px;
+            border-radius: 10px;
+            width: 80%;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loading">Caricamento modello 3D...</div>
+    <div id="info">Usa 1 dito per ruotare. 2 dita per zoomare/spostare.</div>
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+
+        init();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Scena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x23272a); // Colore di sfondo scuro
+
+            // 2. Camera (Prospettica)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 150);
+
+            // 3. Renderer (Ottimizzato per schermi Retina/Mobile)
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Ottimizza le performance sui telefoni
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // 4. Controlli Touch/Mouse
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Rende il movimento più fluido
+            controls.dampingFactor = 0.05;
+
+            // 5. Luci
+            const ambientLight = new THREE.AmbientLight(0x666666);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight1.position.set(1, 1, 1).normalize();
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x555555, 0.5);
+            dirLight2.position.set(-1, -1, -1).normalize();
+            scene.add(dirLight2);
+
+            // 6. Caricamento file STL
+            const loader = new STLLoader();
+            // Inserisci qui il nome esatto del tuo file
+            const fileUrl = 'single_color.stl'; 
+
+            loader.load(
+                fileUrl,
+                function (geometry) {
+                    // Materiale dell'oggetto (colore grigio chiaro/alluminio metallico)
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: 0x90caf9, // Un bel colore azzurrato/grigio moderno
+                        roughness: 0.4,
+                        metalness: 0.2
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+
+                    // Centra automaticamente la geometria del file STL rispetto al suo asse
+                    geometry.center();
+
+                    // Scala e posiziona la telecamera in base alla dimensione reale dell'oggetto
+                    geometry.computeBoundingSphere();
+                    const sphere = geometry.boundingSphere;
+                    const radius = sphere.radius;
+                    
+                    // Riposiziona la camera per far entrare tutto l'oggetto nello schermo
+                    camera.position.set(0, 0, radius * 2.5);
+                    controls.maxDistance = radius * 10;
+                    controls.update();
+
+                    scene.add(mesh);
+
+                    // Nasconde la scritta di caricamento
+                    document.getElementById('loading').style.opacity = '0';
+                    setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+                },
+                function (xhr) {
+                    // Mostra la percentuale di caricamento in console
+                    if (xhr.lengthComputable) {
+                        const percentComplete = (xhr.loaded / xhr.total) * 100;
+                        console.log(Math.round(percentComplete, 2) + '% caricato');
+                    }
+                },
+                function (error) {
+                    console.error("Errore durante il caricamento dell'STL:", error);
+                    document.getElementById('loading').innerText = "Errore nel caricamento del file.";
+                }
+            );
+
+            // Gestione del ridimensionamento dello schermo (es. se giri il telefono in orizzontale)
+            window.addEventListener('resize', onWindowResize);
+            
+            // Avvia il loop di rendering
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Necessario per il damping fluido
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
