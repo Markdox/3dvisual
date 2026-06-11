@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizzatore STL 3D Mobile</title>
+    <title>Visualizzatore 3D</title>
     <style>
         * {
             box-sizing: border-box;
@@ -61,7 +61,7 @@
 </head>
 <body>
 
-    <div id="loading">Caricamento modello 3D...</div>
+    <div id="loading">Visualizzatore 3D...</div>
     <div id="info">Usa 1 dito per ruotare. 2 dita per zoomare/spostare.</div>
     <div id="canvas-container"></div>
 
@@ -79,25 +79,24 @@
 
             // 1. Scena
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x23272a); // Colore di sfondo scuro
+            scene.background = new THREE.Color(0x23272a); 
 
-            // 2. Camera (Prospettica)
+            // 2. Camera
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 0, 150);
 
-            // 3. Renderer (Ottimizzato per schermi Retina/Mobile)
+            // 3. Renderer ottimizzato per Mobile
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Ottimizza le performance sui telefoni
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
             container.appendChild(renderer.domElement);
 
-            // 4. Controlli Touch/Mouse
+            // 4. Controlli Touch
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; // Rende il movimento più fluido
+            controls.enableDamping = true; 
             controls.dampingFactor = 0.05;
 
-            // 5. Luci
+            // 5. Illuminazione della scena
             const ambientLight = new THREE.AmbientLight(0x666666);
             scene.add(ambientLight);
 
@@ -109,59 +108,47 @@
             dirLight2.position.set(-1, -1, -1).normalize();
             scene.add(dirLight2);
 
-            // 6. Caricamento file STL
+            // 6. Caricamento file STL (Inizializzato per percorso relativo)
             const loader = new STLLoader();
-            // Inserisci qui il nome esatto del tuo file
-            const fileUrl = 'single_color.stl'; 
+            const fileUrl = './single_color.stl'; 
 
             loader.load(
                 fileUrl,
                 function (geometry) {
-                    // Materiale dell'oggetto (colore grigio chiaro/alluminio metallico)
                     const material = new THREE.MeshStandardMaterial({ 
-                        color: 0x90caf9, // Un bel colore azzurrato/grigio moderno
+                        color: 0x90caf9, 
                         roughness: 0.4,
                         metalness: 0.2
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
 
-                    // Centra automaticamente la geometria del file STL rispetto al suo asse
+                    // Centra l'oggetto
                     geometry.center();
 
-                    // Scala e posiziona la telecamera in base alla dimensione reale dell'oggetto
+                    // Auto-scala per adattarsi allo schermo
                     geometry.computeBoundingSphere();
                     const sphere = geometry.boundingSphere;
                     const radius = sphere.radius;
                     
-                    // Riposiziona la camera per far entrare tutto l'oggetto nello schermo
                     camera.position.set(0, 0, radius * 2.5);
                     controls.maxDistance = radius * 10;
                     controls.update();
 
                     scene.add(mesh);
 
-                    // Nasconde la scritta di caricamento
+                    // Nasconde la schermata di caricamento "Visualizzatore 3D..."
                     document.getElementById('loading').style.opacity = '0';
                     setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
                 },
-                function (xhr) {
-                    // Mostra la percentuale di caricamento in console
-                    if (xhr.lengthComputable) {
-                        const percentComplete = (xhr.loaded / xhr.total) * 100;
-                        console.log(Math.round(percentComplete, 2) + '% caricato');
-                    }
-                },
+                undefined,
                 function (error) {
-                    console.error("Errore durante il caricamento dell'STL:", error);
+                    console.error("Errore nel caricamento dell'STL:", error);
                     document.getElementById('loading').innerText = "Errore nel caricamento del file.";
                 }
             );
 
-            // Gestione del ridimensionamento dello schermo (es. se giri il telefono in orizzontale)
             window.addEventListener('resize', onWindowResize);
-            
-            // Avvia il loop di rendering
             animate();
         }
 
@@ -173,7 +160,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            controls.update(); // Necessario per il damping fluido
+            controls.update(); 
             renderer.render(scene, camera);
         }
     </script>
